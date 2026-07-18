@@ -1,4 +1,4 @@
 # Gitignore settings for ESPHome
 # You can modify this file to suit your needs.
-configs/.esphome/
-configs/secrets.yaml
+.esphome/
+secrets.yaml
