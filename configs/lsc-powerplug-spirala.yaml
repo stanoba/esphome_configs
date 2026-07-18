@@ -1,0 +1,177 @@
+substitutions:
+  device_name: "lsc-powerplug-spirala"
+  friendly_name: LSC smart plug - Spirala
+  voltage_divider: '795'
+  current_resistor: '0.001'
+  current_multiply: '0.450' 
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.7.0
+  # on_boot:
+  #   then:
+  #     - switch.turn_off: switch_1
+  #     - output.turn_off: output_red_led
+
+bk72xx:
+  board: generic-bk7231n-qfn32-tuya
+
+logger:
+  baud_rate: 0
+
+captive_portal:
+
+mdns:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_key
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_username
+    password: !secret web_password
+    type: digest
+
+# Allow Over-The-Air updates
+ota:
+- platform: esphome
+  password: !secret otapw
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    password: !secret ap_wifi_password
+
+button:
+  - platform: restart
+    name: Restart
+
+debug:
+  update_interval: 30s
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: Reset Reason
+  - platform: libretiny
+    version:
+      name: LibreTiny Version
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: Uptime
+    icon: mdi:clock-start
+  - platform: internal_temperature
+    name: "Internal Temperature"
+  - platform: hlw8012
+    model: BL0937
+    update_interval: 500ms
+    change_mode_every: 2
+    cf_pin:
+      number: P26
+      inverted: true
+    cf1_pin:
+      number: P24
+      inverted: true
+    sel_pin:
+      number: P11
+      inverted: true
+    current:
+      name: Current
+      id: current
+      accuracy_decimals: 3
+      on_value:
+        component.update: apparent_power
+      filters:
+        - multiply: ${current_multiply}
+        - sliding_window_moving_average:
+            window_size: 4
+            send_every: 2
+    voltage:
+      name: Voltage
+      id: voltage
+      on_value:
+        component.update: apparent_power
+      filters:
+        - sliding_window_moving_average:
+            window_size: 4
+            send_every: 2
+    power:
+      name: Power
+      id: power
+      on_value:
+        component.update: power_factor
+      filters:
+        - sliding_window_moving_average:
+            window_size: 4
+            send_every: 2
+    energy:
+      name: Energy
+    voltage_divider: ${voltage_divider}
+    current_resistor: ${current_resistor}
+  - platform: template
+    name: "Apparent power"
+    id: apparent_power
+    unit_of_measurement: VA
+    device_class: apparent_power
+    lambda: |-
+      return id(voltage).state * id(current).state;
+    update_interval: never
+    on_value:
+        component.update: power_factor
+  - platform: template
+    name: "Power factor"
+    id: power_factor
+    unit_of_measurement: ''
+    device_class: power_factor
+    lambda: |-
+      return id(power).state / id(apparent_power).state;
+    filters:
+      - clamp:
+          min_value: 0
+          max_value: 1
+    update_interval: never
+
+binary_sensor:
+  - platform: gpio
+    id: binary_switch_1
+    pin:
+      number: P7
+      inverted: true
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 10ms
+    on_press:
+      then:
+        - switch.toggle: switch_1
+
+switch:
+  - platform: gpio
+    id: switch_1
+    name: none
+    pin: P8
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - output.turn_on: output_red_led
+    on_turn_off:
+      - output.turn_off: output_red_led
+
+
+# Status LED for connection
+status_led:
+  pin:
+    number: P10
+    inverted: true
+
+output:
+  - platform: gpio
+    id: output_red_led
+    pin: P6
