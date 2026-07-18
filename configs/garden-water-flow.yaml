@@ -1,0 +1,114 @@
+substitutions:
+  name_of_board: garden-water-flow
+  friendly_name_of_board: 'Garden Water Flow Sensor'
+  ha_icon: mdi:water
+
+esphome:
+  name: ${name_of_board}
+  friendly_name: ${friendly_name_of_board}
+  min_version: 2026.7.0
+  name_add_mac_suffix: false
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger: {}
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_key
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_username
+    password: !secret web_password
+    type: digest
+
+# Allow Over-The-Air updates
+ota:
+- platform: esphome
+  password: !secret otapw
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    password: !secret ap_wifi_password
+
+captive_portal: {}
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: Uptime
+    icon: mdi:clock-start
+  - platform: internal_temperature
+    name: "Internal Temperature"
+
+# https://community.home-assistant.io/t/water-flow-meter-pulse-meter-included-esphome/418427
+
+  - platform: pulse_meter # https://esphome.io/components/sensor/pulse_meter.html
+    pin:
+      number: GPIO10
+      mode:
+        input: true
+        pullup: true
+    name: "Instant water consumption"
+    unit_of_measurement: "L/min"
+    icon: "${ha_icon}"
+    id: water_flow_sensor
+    timeout: 1s
+    accuracy_decimals: 1
+    filters:
+      - lambda: return (x / 270); // 270 = 4.5 * 60
+      - throttle_average: 1s
+    on_value_range:
+    - above: 0.1
+      then:
+        - light.turn_on:
+            id: status_led_light
+    - below: 0.1
+      then:
+        - light.turn_off:
+            id: status_led_light
+
+    total:
+      name: "Total water consumption"
+      unit_of_measurement: "m³"
+      device_class: water
+      state_class: total_increasing
+      accuracy_decimals: 3
+      icon: "${ha_icon}"
+      id: water_flow_sensor_m3
+      filters:
+        - lambda: return (x / 270000); // 270 = 4.5 * 60 * 1000
+
+i2c:
+  sda: GPIO7
+  scl: GPIO9
+
+display:
+  - platform: lcd_pcf8574
+    dimensions: 16x2
+    #address: 0x3F
+    #address: 0x20
+    address: 0x27
+    update_interval: 1s
+    lambda: |-
+      it.printf(0, 0, "Flow: %.1f L/min", id(water_flow_sensor).state);
+      it.printf(0, 1, "Total: %.1f m3", id(water_flow_sensor_m3).state);
+
+light:
+  - platform: status_led
+    name: "Switch state"
+    id: status_led_light
+    pin: 
+      number: GPIO8
+      inverted: true
