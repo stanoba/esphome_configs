@@ -23,6 +23,8 @@ These smart plugs are based on the **LSC Smart Connect** smart plugs with power 
 - `configs/lsc-powerplug-spirala.yaml` (Spiral Heating Element)
 - `configs/lsc-powerplug-wifi-hore.yaml` (Upstairs WiFi Access Point - automatically scheduled ON in the morning and OFF in the evening)
 - `configs/lsc-smartplug-umyvacka.yaml` (Dishwasher)
+- `configs/lsc-powerplug-4.yaml` (LSC Smart Plug 4)
+- `configs/lsc-smart-plug-5.yaml` (LSC Smart Plug 5 Nova)
 
 ---
 
@@ -42,10 +44,14 @@ These sensors measure water flow using a dedicated pulse meter and an LCD displa
 #### BlitzWolf Smart Plug
 * **Use Case**: Automatically controls (ON/OFF) the circulation pump for hot water.
 * **Product Details**: [BlitzWolf BW-SHP6 ESPHome Page](https://devices.esphome.io/devices/blitzwolf-bw-shp6/)
+* **Configuration**: `configs/shp6.yaml`
 
-#### Side Gate Control
-* **Microcontroller**: ESP32 (Wemos D1 Mini 32)
-* **Configuration**: `configs/gate-control.yaml`
+#### Gate & Entrance Controls
+* **Microcontroller**: ESP32 (Wemos D1 Mini 32 / ESP32 DevKit)
+* **Configurations**:
+  - `configs/gate-control.yaml` (Original Front Gate Control)
+  - `configs/gate-control-2x.yaml` (Front Gate Control 2x / ESP-IDF)
+  - `configs/side-gate-control-2.yaml` (Side Gate Control 2 / ESP-IDF)
 
 #### Swimming Pool Pump
 * **Microcontroller**: ESP8266 (ESP-12E)

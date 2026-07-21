@@ -1,18 +1,14 @@
-substitutions:
-  name_of_board: gate-control-1
-  friendly_name_of_board: 'Side Gate Control 1'
-  ha_icon: mdi:water
-
 esphome:
-  name: ${name_of_board}
-  friendly_name: ${friendly_name_of_board}
+  name: gate-control-x2
+  friendly_name: Front gate control 2x
   min_version: 2026.7.0
-  name_add_mac_suffix: false
 
 esp32:
-  board: wemos_d1_mini32
+  board: esp32dev
   framework:
+    type: esp-idf
     advanced:
+      minimum_chip_revision: "3.1"
       sram1_as_iram: true
 
 # Enable logging
@@ -50,18 +46,34 @@ sensor:
   - platform: uptime
     name: Uptime
     icon: mdi:clock-start
+  - platform: internal_temperature
+    name: "Internal Temperature"
 
+# Relays exposed as switches
 switch:
   - platform: gpio
-    pin: GPIO22
-    id: relay
-    name: "Gate Remote"
+    pin: GPIO17
+    id: relay_1
+    name: "Gate Remote 1"
     icon: "mdi:gate"
     on_turn_on:
     - light.turn_on:
         id: status_led_light
     - delay: 500ms
-    - switch.turn_off: relay
+    - switch.turn_off: relay_1
+    - light.turn_off:
+        id: status_led_light
+
+  - platform: gpio
+    pin: GPIO16
+    id: relay_2
+    name: "Gate Remote 2"
+    icon: "mdi:gate"
+    on_turn_on:
+    - light.turn_on:
+        id: status_led_light
+    - delay: 500ms
+    - switch.turn_off: relay_2
     - light.turn_off:
         id: status_led_light
 
@@ -71,5 +83,5 @@ light:
     id: status_led_light
     icon: "mdi:led-variant-on"
     pin: 
-      number: GPIO2
+      number: GPIO23
       inverted: false
