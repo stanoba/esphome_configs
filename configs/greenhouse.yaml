@@ -1,6 +1,10 @@
+substitutions:
+  device_name: greenhouse
+  friendly_name: "Greenhouse sensors"
+
 esphome:
-  name: greenhouse
-  friendly_name: 'Greenhouse sensors'
+  name: ${device_name}
+  friendly_name: ${friendly_name}
   min_version: 2026.7.0
   on_boot:
     priority: 600
@@ -121,10 +125,11 @@ binary_sensor:
 sensor:
   - platform: wifi_signal
     name: "WiFi Signal"
-    update_interval: 60s
+    update_interval: 30s
   - platform: uptime
     name: Uptime
     icon: mdi:clock-start
+    update_interval: 10s
 
   # HTU21D Environment Sensor (Task 3)
   - platform: htu21d
@@ -134,7 +139,7 @@ sensor:
     humidity:
       name: "Humidity"
       id: temp1_humidity
-    update_interval: 45s
+    update_interval: 30s
 
   # INA219 Energy DC Sensor (Task 4)
   - platform: ina219
@@ -171,9 +176,26 @@ sensor:
       if (percent > 100.0f) percent = 100.0f;
       return percent;
 
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+    ssid:
+      name: "Connected SSID"
+    # mac_address:
+    #   name: "MAC Address"
+
+  # - platform: template
+  #   name: "Hostname"
+  #   icon: mdi:dns
+  #   entity_category: diagnostic
+  #   lambda: |-
+  #     return {"${device_name}.local"};
+  #   update_interval: 24h
+
 # Deep Sleep Cycle (Dynamically overridden on boot / select via C++ functions)
 # Note: Ensure GPIO16 (D0) is wired to the RST pin for wakeups to function.
 deep_sleep:
   id: deep_sleep_control
   sleep_duration: 20min
-  run_duration: 61s
+  run_duration: 40s
