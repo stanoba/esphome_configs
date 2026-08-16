@@ -62,6 +62,8 @@ sensor:
         pullup: true
     name: "Instant water consumption"
     unit_of_measurement: "L/min"
+    device_class: volume_flow_rate
+    state_class: measurement
     icon: "${ha_icon}"
     id: water_flow_sensor
     timeout: 1s
@@ -89,6 +91,7 @@ sensor:
       id: water_flow_sensor_m3
       filters:
         - lambda: return (x / 270000); // 270 = 4.5 * 60 * 1000
+        - throttle_average: 1s
 
 i2c:
   sda: GPIO7

@@ -16,7 +16,8 @@ esp32:
     type: esp-idf
 
 # Enable logging
-logger: {}
+logger:
+  level: DEBUG
 
 # Enable Home Assistant API
 api:
@@ -36,8 +37,12 @@ ota:
   password: !secret otapw
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+  networks:
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+  power_save_mode: NONE
+  fast_connect: false
+  output_power: 8.5dB
   ap:
     password: !secret ap_wifi_password
 
@@ -57,12 +62,14 @@ sensor:
 
   - platform: pulse_meter # https://esphome.io/components/sensor/pulse_meter.html
     pin:
-      number: GPIO3
+      number: GPIO10
       mode:
         input: true
         pullup: true
     name: "Instant water consumption"
     unit_of_measurement: "L/min"
+    device_class: volume_flow_rate
+    state_class: measurement
     icon: "${ha_icon1}"
     id: water_flow_sensor
     timeout: 1s
@@ -90,6 +97,7 @@ sensor:
         id: water_flow_sensor_m3
         filters:
             - lambda: return (x / 323000); // flow rate m3 = 5,38333 Q * 60 = 323 * 1000
+            - throttle_average: 1s
 
         # name: "Consumption L"
         # unit_of_measurement: "L"
