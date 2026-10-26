@@ -51,11 +51,11 @@ Because the modules are positioned in close proximity, point-to-point solid core
 
 | Signal | PCM5102A Pin | ESP32-S3 Pin | Function / Description | Recommended Wire Length |
 | :--- | :--- | :--- | :--- | :--- |
-| **BCK** | Pin 2 (Side 6-pin) | **GPIO 16** | I2S Bit Clock (synchronizes data bits) | ~12–15 mm |
-| **DIN** | Pin 3 (Side 6-pin) | **GPIO 15** | I2S Serial Data Out from ESP32 | ~12–15 mm |
-| **LCK** | Pin 4 (Side 6-pin) | **GPIO 7** | I2S Word Select / Left-Right Clock | ~12–15 mm |
+| **BCK** | Pin 2 (Side 6-pin) | **GPIO 8** | I2S Bit Clock (synchronizes data bits) | ~12–15 mm |
+| **DIN** | Pin 3 (Side 6-pin) | **GPIO 18** | I2S Serial Data Out from ESP32 | ~12–15 mm |
+| **LCK** | Pin 4 (Side 6-pin) | **GPIO 17** | I2S Word Select / Left-Right Clock | ~12–15 mm |
 | **XSMT** | Pin 3 (Top row) | **GPIO 10** | Soft Mute control (HIGH = Unmute, LOW = Mute) | ~10 mm |
-| **Jack Detect** | 3.5mm Socket switch | **GPIO 11** | Headphone/cable insertion detection | ~12–15 mm |
+| **Jack Detect** | 3.5mm Socket switch | **GPIO 14** | Headphone/cable insertion detection | ~12–15 mm |
 | **VIN** | Pin 6 (Side 6-pin) | **5V** (Pin 21) | 5 V power rail into the DAC's onboard LDO | ~25–30 mm |
 | **GND** | Pin 5 (Side 6-pin) | **GND** (Pin 22) | Common ground | ~25–30 mm |
 | **SCK** | Pin 1 (Side 6-pin) | *Unconnected* | Internal PLL mode (generates SCK from BCK) | – |

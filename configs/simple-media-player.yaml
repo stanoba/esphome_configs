@@ -59,11 +59,11 @@ output:
     pin: GPIO10
     id: dac_unmute
 
-# 3.5mm Headphone Jack insertion detection via GPIO 11
+# 3.5mm Headphone Jack insertion detection via GPIO 14
 binary_sensor:
   - platform: gpio
     pin:
-      number: GPIO11
+      number: GPIO14
       mode: INPUT_PULLUP
       inverted: true
     name: "Headphones Connected"
@@ -81,21 +81,21 @@ binary_sensor:
 # I2S Audio Bus
 i2s_audio:
   - id: i2s_bus
-    i2s_bclk_pin: GPIO16
-    i2s_lrclk_pin: GPIO7
+    i2s_bclk_pin: GPIO8
+    i2s_lrclk_pin: GPIO17
 
 # Physical I2S Speaker (PCM5102A external stereo DAC)
 speaker:
   - platform: i2s_audio
     id: i2s_speaker
     i2s_audio_id: i2s_bus
-    i2s_dout_pin: GPIO15
+    i2s_dout_pin: GPIO18
     dac_type: external
     channel: stereo
 
   # Dual-Pipeline Audio Mixer (Allows concurrent Music + TTS/Announcements)
   - platform: mixer
-    id: mixer_speaker
+    id: audio_mixer
     output_speaker: i2s_speaker
     source_speakers:
       - id: announcement_speaker
@@ -140,7 +140,7 @@ light:
   - platform: esp32_rmt_led_strip
     id: onboard_led
     name: "Status LED"
-    pin: GPIO38
+    pin: GPIO48
     num_leds: 1
-    rgb_order: GRB
+    channel_colors: GRB
     chipset: ws2812
