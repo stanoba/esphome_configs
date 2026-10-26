@@ -15,6 +15,8 @@ esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
+    advanced:
+      flash_chip: boya
     sdkconfig_options:
       CONFIG_SPIRAM_MODE_OCT: "y"
       CONFIG_LWIP_TCP_WND_DEFAULT: "65535"
