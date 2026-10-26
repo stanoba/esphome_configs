@@ -1,6 +1,9 @@
 substitutions:
   device_name: simple-media-player
-  friendly_name: "Simple Media Player"
+  friendly_name: "ESP32 Media Player 1"
+  led_brightness: 25%
+  led_gpio_pin: GPIO48
+  sample_rate: 48000
 
 esphome:
   name: ${device_name}
@@ -12,7 +15,7 @@ esphome:
       - output.turn_on: dac_unmute
       - light.turn_on:
           id: onboard_led
-          brightness: 30%
+          brightness: ${led_brightness}
           red: 0%
           green: 10%
           blue: 20%
@@ -24,6 +27,7 @@ esp32:
     advanced:
       flash_chip: boya
     sdkconfig_options:
+      CONFIG_BT_ENABLED: "n"
       CONFIG_SPIRAM_MODE_OCT: "y"
       CONFIG_LWIP_TCP_WND_DEFAULT: "65535"
       CONFIG_LWIP_TCP_RECVMBOX_SIZE: "64"
@@ -48,6 +52,8 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+#  output_power: 8.5dB
+#  power_save_mode: NONE
   ap:
     ssid: "Simple-Media-Player-AP"
     password: !secret ap_wifi_password
@@ -117,6 +123,10 @@ speaker:
     id: i2s_speaker
     i2s_audio_id: i2s_bus
     i2s_dout_pin: GPIO18
+    sample_rate: $sample_rate
+    bits_per_sample: 16bit
+    buffer_duration: 500ms
+    timeout: never
     dac_type: external
     channel: stereo
 
@@ -139,12 +149,16 @@ media_player:
       speaker: media_speaker
     buffer_size: 524288
     task_stack_in_psram: true
+    volume_increment: 0.02
+    volume_initial: 0.80
+    volume_min: 0.04
+    volume_max: 0.96
     on_play:
       then:
         - output.turn_on: dac_unmute
         - light.turn_on:
             id: onboard_led
-            brightness: 30%
+            brightness: ${led_brightness}
             red: 0%
             green: 80%
             blue: 0%
@@ -152,7 +166,7 @@ media_player:
       then:
         - light.turn_on:
             id: onboard_led
-            brightness: 30%
+            brightness: ${led_brightness}
             red: 0%
             green: 10%
             blue: 20%
@@ -160,7 +174,7 @@ media_player:
       then:
         - light.turn_on:
             id: onboard_led
-            brightness: 30%
+            brightness: ${led_brightness}
             red: 30%
             green: 30%
             blue: 0%
@@ -170,7 +184,7 @@ light:
   - platform: esp32_rmt_led_strip
     id: onboard_led
     name: "Status LED"
-    pin: GPIO48
+    pin: ${led_gpio_pin}
     num_leds: 1
     channel_colors: GRB
     chipset: ws2812

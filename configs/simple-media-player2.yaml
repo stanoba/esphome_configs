@@ -1,0 +1,252 @@
+# =============================================================================
+# HARDWARE INFORMATION
+# =============================================================================
+# ESP32 Chip: ESP32-S3 rev0.2, 2 core(s)
+# ESP32-S3-DevkitC-1 V1.0
+# Onboard LED -> GPIO48
+# Original source code https://github.com/cofw2005/ha-simple-media-player/blob/main/yamls/simple_sendspin_media_player.yaml
+# =============================================================================
+
+# Define the device name and friendly name
+substitutions:
+  device_name: simple-media-player
+  friendly_name: "ESP32 Media Player 2"
+  led_brightness: 25%
+  led_gpio_pin: GPIO48
+  sample_rate: 48000
+
+# =============================================================================
+# Basic ESPHome configurations
+# =============================================================================
+# Core board ESP32-S3-DevkitC-1
+# Lgger, OTA, Fallback hotpot and PSRAM enabled
+# By default of PlatformIO, board: esp32-s3-devkitc-1 means for a non-PSRAM version.
+# "platformio_options" must be defined to overwrite the default options of the board,
+# to give right confirmation for N16R8
+# =============================================================================
+
+esphome:
+  name: $device_name
+  friendly_name: $friendly_name
+  build_flags: 
+    - -DBOARD_HAS_PSRAM
+  on_boot:
+    priority: 800
+    then:
+      - output.turn_on: dac_unmute
+      - light.turn_on:
+          id: onboard_led
+          brightness: ${led_brightness}
+          red: 0%
+          green: 10%
+          blue: 20%
+
+# According to latest ESPHome documentation, variant is recommended practice,
+# board option is added for backwards compatibility, it might be removed later
+# Use the ESP32 Platform configuration cpu_frequency, flash_size to define right parameter for N16R8
+# Disable bluetooth as it is not used in the components
+# Add some SRAM and PSRAM improvements
+esp32:
+  variant: esp32s3
+  board: esp32-s3-devkitc1-n16r8
+  cpu_frequency: 240MHz
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_BT_ENABLED: "n"
+      CONFIG_ESP_WIFI_TASK_CORE_ID: "0"
+      # Configs to improve data cache, these configs consume about 65KB SRAM
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB: "y"
+      # Configs to optimize PSRAM usage
+      CONFIG_SPIRAM_RODATA: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP: "y"
+      CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY: "y"
+      CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: "y"
+
+# Enable logging
+logger:
+  level: DEBUG
+  logs:
+    sensor: WARN 
+
+# Over The Air update
+ota:
+  - platform: esphome
+    password: !secret otapw
+
+# Wifi setup
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  
+  output_power: 8.5dB
+  power_save_mode: NONE
+
+# Set network performance to false if there is ring buffer issue existing
+network:
+  enable_high_performance: false
+
+# Enable PSRAM (Typically on ESP32-S3 modules, a 2MB PSRAM will use quad mode,
+# while 8 or 16MB will use octal mode)
+psram:
+  mode: octal
+  speed: 80MHz
+  ignore_not_found: false
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_key
+  reboot_timeout: 0s
+
+# Soft-Mute control (Pin 3 XSMT on PCM5102A) via GPIO 10
+output:
+  - platform: gpio
+    pin: GPIO10
+    id: dac_unmute
+
+# 3.5mm Headphone Jack insertion detection via GPIO 14
+# BOOT button (GPIO 0) doubles as Play/Pause during normal operation
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO14
+      mode: INPUT_PULLUP
+      inverted: false
+    name: "Headphones Connected"
+    id: headphone_jack_detect
+    on_press:
+      then:
+        - logger.log: "Audio jack connected - unmuting DAC"
+        - output.turn_on: dac_unmute
+    on_release:
+      then:
+        - logger.log: "Audio jack disconnected - stopping playback"
+        - media_player.stop: external_media_player
+        - output.turn_off: dac_unmute
+
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+      ignore_strapping_warning: true
+    name: "Play-Pause Button"
+    id: boot_button
+    on_click:
+      then:
+        - if:
+            condition:
+              media_player.is_playing: external_media_player
+            then:
+              - media_player.pause: external_media_player
+            else:
+              - media_player.play: external_media_player
+
+
+# =============================================================================
+# Media player / I2S configurations
+# =============================================================================
+# At sample rate 44100Hz, 2 channels, 16bit, every 1ms buffer uses about 176.4 Bytes
+# 100ms - 17.64K, 200ms - 35.2KB, 500ms - 86.13KB
+# If no sound by setting bits_per_sample to 32bit, set to 16bit instead
+# =============================================================================
+i2s_audio:
+  - id: i2s_bus
+    i2s_bclk_pin: GPIO8
+    i2s_lrclk_pin: GPIO17
+
+sendspin:
+  id: sendspin_hub
+  task_stack_in_psram: false
+
+media_source:
+  - platform: sendspin
+    id: sendspin_media_source
+    sample_rate: $sample_rate
+    task_stack_in_psram: false
+    decode_memory: psram
+
+speaker:
+  - platform: i2s_audio
+    id: i2s_audio_speaker
+    i2s_audio_id: i2s_bus
+    sample_rate: $sample_rate
+    i2s_dout_pin: GPIO18
+    bits_per_sample: 16bit
+    dac_type: external
+    channel: stereo
+    timeout: never
+    buffer_duration: 500ms
+
+  - platform: resampler
+    id: media_resampling_speaker
+    output_speaker: i2s_audio_speaker
+    sample_rate: $sample_rate
+    bits_per_sample: 16
+    buffer_duration: 100ms
+    task_stack_in_psram: false
+
+media_player:
+  - platform: speaker_source
+    id: external_media_player
+    media_pipeline:
+      format: FLAC
+      num_channels: 2
+      sample_rate: $sample_rate
+      speaker: media_resampling_speaker
+      sources:
+        - sendspin_media_source
+    volume_increment: 0.02
+    volume_initial: 0.80
+    volume_min: 0.04
+    volume_max: 0.96
+    on_play:
+      then:
+        - output.turn_on: dac_unmute
+        - light.turn_on:
+            id: onboard_led
+            brightness: ${led_brightness}
+            red: 0%
+            green: 80%
+            blue: 0%
+    on_idle:
+      then:
+        - light.turn_on:
+            id: onboard_led
+            brightness: ${led_brightness}
+            red: 0%
+            green: 10%
+            blue: 20%
+    on_pause:
+      then:
+        - light.turn_on:
+            id: onboard_led
+            brightness: ${led_brightness}
+            red: 30%
+            green: 30%
+            blue: 0%
+
+# Onboard RGB LED on ESP32-S3 (GPIO 48)
+light:
+  - platform: esp32_rmt_led_strip
+    id: onboard_led
+    name: "Status LED"
+    pin: ${led_gpio_pin}
+    num_leds: 1
+    channel_colors: GRB
+    chipset: ws2812
+    default_transition_length: 300ms
+    restore_mode: RESTORE_DEFAULT_ON
+
+# =============================================================================
+# Include addon packages if needed
+# =============================================================================
+#packages:
+  #monitor_memory: !include addons/monitor_memory.yaml
+  #deep_sleep: !include addons/deep_sleep.yaml
