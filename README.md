@@ -59,6 +59,21 @@ These sensors measure water flow using a dedicated pulse meter and an LCD displa
 
 ---
 
+### 4. Simple Media Player (Audio Streamer)
+A high-performance local network audio streamer optimized for **Music Assistant** and Home Assistant.
+* **Microcontroller**: [ESP32-S3 DevKitC-1 (N16R8)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/index.html) (16 MB Flash, 8 MB Octal PSRAM)
+* **DAC Module**: Texas Instruments PCM5102A I2S DAC (32-bit / 384 kHz stereo)
+* **Framework**: ESP-IDF with Octal PSRAM and 512 kB stream buffer
+* **Features**:
+  - High-resolution audio streaming with zero stutter via Music Assistant (Sendspin)
+  - Hardware pop suppression via Soft Mute control (XSMT on GPIO 10)
+  - Headphone/cable insertion detection (GPIO 11) with auto-pause
+  - Onboard WS2812 RGB LED playback status indication (GPIO 38)
+* **Hardware Documentation**: See [hardware/simple-media-player.md](hardware/simple-media-player.md) for full pinout and wiring guide.
+* **Configuration**: `configs/simple-media-player.yaml`
+
+---
+
 ## Secrets Management
 All sensitive credentials (Wi-Fi passwords, API keys, and usernames) are kept in the `configs/secrets.yaml` file. 
 

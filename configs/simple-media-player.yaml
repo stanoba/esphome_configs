@@ -1,0 +1,146 @@
+substitutions:
+  device_name: simple-media-player
+  friendly_name: "Simple Media Player"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.7.0
+  on_boot:
+    priority: 800
+    then:
+      - output.turn_on: dac_unmute
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_SPIRAM_MODE_OCT: "y"
+      CONFIG_LWIP_TCP_WND_DEFAULT: "65535"
+      CONFIG_LWIP_TCP_RECVMBOX_SIZE: "64"
+      CONFIG_LWIP_UDP_RECVMBOX_SIZE: "64"
+      CONFIG_LWIP_TCPIP_RECVMBOX_SIZE: "64"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret otapw
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Simple-Media-Player-AP"
+    password: !secret ap_wifi_password
+
+captive_portal:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_username
+    password: !secret web_password
+    type: digest
+
+# Soft-Mute control (Pin 3 XSMT on PCM5102A) via GPIO 10
+output:
+  - platform: gpio
+    pin: GPIO10
+    id: dac_unmute
+
+# 3.5mm Headphone Jack insertion detection via GPIO 11
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO11
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Headphones Connected"
+    id: headphone_jack_detect
+    on_press:
+      then:
+        - logger.log: "Audio jack connected - unmuting DAC"
+        - output.turn_on: dac_unmute
+    on_release:
+      then:
+        - logger.log: "Audio jack disconnected - stopping playback"
+        - media_player.stop: simple_player
+        - output.turn_off: dac_unmute
+
+# I2S Audio Bus
+i2s_audio:
+  - id: i2s_bus
+    i2s_bclk_pin: GPIO16
+    i2s_lrclk_pin: GPIO7
+
+# Physical I2S Speaker (PCM5102A external stereo DAC)
+speaker:
+  - platform: i2s_audio
+    id: i2s_speaker
+    i2s_audio_id: i2s_bus
+    i2s_dout_pin: GPIO15
+    dac_type: external
+    channel: stereo
+
+  # Dual-Pipeline Audio Mixer (Allows concurrent Music + TTS/Announcements)
+  - platform: mixer
+    id: mixer_speaker
+    output_speaker: i2s_speaker
+    source_speakers:
+      - id: announcement_speaker
+      - id: media_speaker
+
+# Network Media Player with 512 kB buffer in PSRAM for seamless streaming (Music Assistant)
+media_player:
+  - platform: speaker
+    id: simple_player
+    name: "Media Player"
+    announcement_pipeline:
+      speaker: announcement_speaker
+    media_pipeline:
+      speaker: media_speaker
+    buffer_size: 524288
+    task_stack_in_psram: true
+    on_play:
+      then:
+        - output.turn_on: dac_unmute
+        - light.turn_on:
+            id: onboard_led
+            red: 0%
+            green: 80%
+            blue: 0%
+    on_idle:
+      then:
+        - light.turn_on:
+            id: onboard_led
+            red: 0%
+            green: 10%
+            blue: 20%
+    on_pause:
+      then:
+        - light.turn_on:
+            id: onboard_led
+            red: 30%
+            green: 30%
+            blue: 0%
+
+# Onboard RGB LED on ESP32-S3 (GPIO 38)
+light:
+  - platform: esp32_rmt_led_strip
+    id: onboard_led
+    name: "Status LED"
+    pin: GPIO38
+    num_leds: 1
+    rgb_order: GRB
+    chipset: ws2812
