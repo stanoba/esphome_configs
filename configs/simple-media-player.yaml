@@ -127,8 +127,8 @@ binary_sensor:
     id: button_prev_track
     on_press:
       then:
-        - homeassistant.service:
-            service: media_player.media_previous_track
+        - homeassistant.action:
+            action: media_player.media_previous_track
             data:
               entity_id: ${ha_media_player_intity_id}
 
@@ -160,8 +160,8 @@ binary_sensor:
     id: button_next_track
     on_press:
       then:
-        - homeassistant.service:
-            service: media_player.media_next_track
+        - homeassistant.action:
+            action: media_player.media_next_track
             data:
               entity_id: ${ha_media_player_intity_id}
 
