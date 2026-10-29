@@ -4,6 +4,7 @@ substitutions:
   led_brightness: 25%
   led_gpio_pin: GPIO48
   sample_rate: 48000
+  ha_media_player_intity_id: media_player.esp32_media_player_1_media_player
 
 esphome:
   name: ${device_name}
@@ -76,6 +77,7 @@ output:
 # 3.5mm Headphone Jack insertion detection via GPIO 14
 # BOOT button (GPIO 0) doubles as Play/Pause during normal operation
 binary_sensor:
+  # 3.5mm Headphone Jack insertion detection via GPIO 14
   - platform: gpio
     pin:
       number: GPIO14
@@ -93,15 +95,52 @@ binary_sensor:
         - media_player.stop: simple_player
         - output.turn_off: dac_unmute
 
+  # 1. Volume Up Button (GPIO 15 - connected to 3V3)
   - platform: gpio
     pin:
-      number: GPIO0
+      number: GPIO15
+      mode: INPUT_PULLDOWN
+    name: "Volume Up Button"
+    id: button_vol_up
+    on_press:
+      then:
+        - media_player.volume_up: simple_player
+
+  # 2. Volume Down Button (GPIO 4 - connected to 3V3)
+  - platform: gpio
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLDOWN
+    name: "Volume Down Button"
+    id: button_vol_down
+    on_press:
+      then:
+        - media_player.volume_down: simple_player
+
+  # 3. Previous Track Button (GPIO 2 - connected to GND)
+  - platform: gpio
+    pin:
+      number: GPIO2
       mode: INPUT_PULLUP
       inverted: true
-      ignore_strapping_warning: true
-    name: "Play-Pause Button"
-    id: boot_button
-    on_click:
+    name: "Previous Track Button"
+    id: button_prev_track
+    on_press:
+      then:
+        - homeassistant.service:
+            service: media_player.media_previous_track
+            data:
+              entity_id: ${ha_media_player_intity_id}
+
+  # 4. Play / Pause Button (GPIO 39 - connected to GND)
+  - platform: gpio
+    pin:
+      number: GPIO39
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Play Pause Button"
+    id: button_play_pause
+    on_press:
       then:
         - if:
             condition:
@@ -110,6 +149,22 @@ binary_sensor:
               - media_player.pause: simple_player
             else:
               - media_player.play: simple_player
+
+  # 5. Next Track Button (GPIO 47 - connected to GND)
+  - platform: gpio
+    pin:
+      number: GPIO47
+      mode: INPUT_PULLUP
+      inverted: true
+    name: "Next Track Button"
+    id: button_next_track
+    on_press:
+      then:
+        - homeassistant.service:
+            service: media_player.media_next_track
+            data:
+              entity_id: ${ha_media_player_intity_id}
+
 
 # I2S Audio Bus
 i2s_audio:
@@ -149,7 +204,7 @@ media_player:
       speaker: media_speaker
     buffer_size: 524288
     task_stack_in_psram: true
-    volume_increment: 0.02
+    volume_increment: 0.05
     volume_initial: 0.80
     volume_min: 0.04
     volume_max: 0.96
@@ -179,7 +234,7 @@ media_player:
             green: 30%
             blue: 0%
 
-# Onboard RGB LED on ESP32-S3 (GPIO 38)
+# Onboard RGB LED on ESP32-S3
 light:
   - platform: esp32_rmt_led_strip
     id: onboard_led
