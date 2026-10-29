@@ -1,9 +1,10 @@
 substitutions:
   device_name: simple-media-player
   friendly_name: "ESP32 Media Player 1"
-  led_brightness: 25%
+  led_brightness: 30%
   led_gpio_pin: GPIO48
   sample_rate: 48000
+  button_debounce_time: 100ms
   ha_media_player_intity_id: media_player.esp32_media_player_1_media_player
 
 esphome:
@@ -125,6 +126,8 @@ binary_sensor:
       inverted: true
     name: "Previous Track Button"
     id: button_prev_track
+    filters:
+          - delayed_off: ${button_debounce_time}
     on_press:
       then:
         - homeassistant.action:
@@ -140,6 +143,8 @@ binary_sensor:
       inverted: true
     name: "Play Pause Button"
     id: button_play_pause
+    filters:
+          - delayed_off: ${button_debounce_time}
     on_press:
       then:
         - if:
@@ -158,13 +163,14 @@ binary_sensor:
       inverted: true
     name: "Next Track Button"
     id: button_next_track
+    filters:
+          - delayed_off: ${button_debounce_time}
     on_press:
       then:
         - homeassistant.action:
             action: media_player.media_next_track
             data:
               entity_id: ${ha_media_player_intity_id}
-
 
 # I2S Audio Bus
 i2s_audio:
@@ -213,6 +219,7 @@ media_player:
         - output.turn_on: dac_unmute
         - light.turn_on:
             id: onboard_led
+            effect: "none"
             brightness: ${led_brightness}
             red: 0%
             green: 80%
@@ -221,6 +228,7 @@ media_player:
       then:
         - light.turn_on:
             id: onboard_led
+            effect: "none"
             brightness: ${led_brightness}
             red: 0%
             green: 10%
@@ -229,10 +237,7 @@ media_player:
       then:
         - light.turn_on:
             id: onboard_led
-            brightness: ${led_brightness}
-            red: 30%
-            green: 30%
-            blue: 0%
+            effect: "pause_blink"
 
 # Onboard RGB LED on ESP32-S3
 light:
@@ -245,3 +250,15 @@ light:
     chipset: ws2812
     default_transition_length: 300ms
     restore_mode: RESTORE_DEFAULT_ON
+    effects:
+      - strobe:
+          name: "pause_blink"
+          colors:
+            - state: true
+              brightness: ${led_brightness}
+              red: 75%
+              green: 40%
+              blue: 0%
+              duration: 500ms
+            - state: false
+              duration: 500ms
