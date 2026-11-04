@@ -12,15 +12,12 @@ esphome:
   friendly_name: ${friendly_name}
   min_version: 2026.7.0
   on_boot:
-    priority: 800
+    priority: 500.0
     then:
       - output.turn_on: dac_unmute
       - light.turn_on:
           id: onboard_led
-          brightness: ${led_brightness}
-          red: 0%
-          green: 10%
-          blue: 20%
+          effect: "wifi_connecting"
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -41,7 +38,7 @@ psram:
   speed: 80MHz
 
 logger:
-  level: INFO
+  level: DEBUG
 
 api:
   encryption:
@@ -59,6 +56,20 @@ wifi:
   ap:
     ssid: "Simple-Media-Player-AP"
     password: !secret ap_wifi_password
+
+  on_connect:
+    then:
+      - logger.log: "WiFi connected"
+      - light.turn_on:
+          id: onboard_led
+          effect: "idle_state"
+
+  on_disconnect:
+    then:
+      - logger.log: "WiFi disconnected"
+      - light.turn_on:
+          id: onboard_led
+          effect: "wifi_connecting"
 
 captive_portal:
 
@@ -127,7 +138,7 @@ binary_sensor:
     name: "Previous Track Button"
     id: button_prev_track
     filters:
-          - delayed_off: ${button_debounce_time}
+      - delayed_off: ${button_debounce_time}
     on_press:
       then:
         - homeassistant.action:
@@ -144,7 +155,7 @@ binary_sensor:
     name: "Play Pause Button"
     id: button_play_pause
     filters:
-          - delayed_off: ${button_debounce_time}
+      - delayed_off: ${button_debounce_time}
     on_press:
       then:
         - if:
@@ -164,7 +175,7 @@ binary_sensor:
     name: "Next Track Button"
     id: button_next_track
     filters:
-          - delayed_off: ${button_debounce_time}
+      - delayed_off: ${button_debounce_time}
     on_press:
       then:
         - homeassistant.action:
@@ -228,11 +239,7 @@ media_player:
       then:
         - light.turn_on:
             id: onboard_led
-            effect: "none"
-            brightness: ${led_brightness}
-            red: 0%
-            green: 10%
-            blue: 20%
+            effect: "idle_state"
     on_pause:
       then:
         - light.turn_on:
@@ -251,6 +258,11 @@ light:
     default_transition_length: 300ms
     restore_mode: RESTORE_DEFAULT_ON
     effects:
+      - addressable_lambda:
+          name: "idle_state"
+          update_interval: 0s
+          lambda: |-
+            it[0] = Color(0, 25, 51); // Red 0%, Green 10% (25/255), Blue 20% (51/255)
       - strobe:
           name: "pause_blink"
           colors:
@@ -262,3 +274,14 @@ light:
               duration: 500ms
             - state: false
               duration: 500ms
+      - strobe:
+          name: "wifi_connecting"
+          colors:
+            - state: true
+              brightness: ${led_brightness}
+              red: 0%
+              green: 0%
+              blue: 80%
+              duration: 200ms
+            - state: false
+              duration: 200ms
