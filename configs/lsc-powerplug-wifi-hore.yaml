@@ -30,6 +30,7 @@ mdns:
 api:
   encryption:
     key: !secret api_key
+  reboot_timeout: 0s
 
 web_server:
   port: 80
@@ -46,6 +47,8 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  reboot_timeout: 0s
+  post_connect_roaming: false
   ap:
     password: !secret ap_wifi_password
   on_connect:
@@ -177,7 +180,7 @@ binary_sensor:
       inverted: true
       mode: INPUT_PULLUP
     filters:
-      - delayed_on: 10ms
+      - delayed_on: 50ms
     on_press:
       then:
         - switch.toggle: switch_1
@@ -187,7 +190,7 @@ switch:
     id: switch_1
     name: none
     pin: P8
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_mode: RESTORE_DEFAULT_ON
     on_turn_on:
       script.execute: set_status_led
     on_turn_off:
