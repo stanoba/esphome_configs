@@ -80,8 +80,8 @@ web_server:
   version: 3
   local: true
 
-# Captive portal for easy browser pop-up upon connecting to AP
-captive_portal:
+# captive_portal disabled: it redirects to WiFi scan page instead of the control web UI.
+# After connecting to "Mi-Desk-Lamp-AP", open http://192.168.4.1/ manually.
 
 ota:
   - platform: esphome
@@ -130,6 +130,61 @@ number:
       return 3500.0f;
 
 # ==============================================================================
+# GLOBAL VARIABLES - save lamp state for blink feedback
+# ==============================================================================
+globals:
+  - id: saved_brightness
+    type: float
+    initial_value: '1.0'
+  - id: saved_color_temp
+    type: float
+    initial_value: '300.0'
+  - id: saved_light_on
+    type: bool
+    initial_value: 'false'
+
+# ==============================================================================
+# SCRIPTS - reusable blink-down feedback (visible even when lamp is ON)
+# ==============================================================================
+script:
+  - id: blink_once
+    # Blink feedback regardless of lamp state:
+    #   Lamp ON  → blink-down: turn off 200ms, then restore
+    #   Lamp OFF → blink-up:   turn on 200ms at full brightness, then turn off
+    mode: single
+    then:
+      - lambda: |-
+          id(saved_brightness)  = id(light1).remote_values.get_brightness();
+          id(saved_color_temp)  = id(light1).remote_values.get_color_temperature();
+          id(saved_light_on)    = id(light1).remote_values.is_on();
+      - if:
+          condition:
+            lambda: 'return id(saved_light_on);'
+          then:
+            # Lamp is ON → blink-down: turn off briefly, then restore
+            - light.turn_off:
+                id: light1
+                transition_length: 0s
+            - delay: 200ms
+            - light.turn_on:
+                id: light1
+                brightness: !lambda 'return id(saved_brightness);'
+                color_temperature: !lambda 'return id(saved_color_temp);'
+                transition_length: 0s
+          else:
+            # Lamp is OFF → blink-up: flash on using saved brightness/color_temp (preserves state),
+            # then turn off. Using saved values avoids overwriting the light's last-on state.
+            - light.turn_on:
+                id: light1
+                brightness: !lambda 'return (id(saved_brightness) > 0.01f) ? id(saved_brightness) : 1.0f;'
+                color_temperature: !lambda 'return (id(saved_color_temp) > 0.0f) ? id(saved_color_temp) : 300.0f;'
+                transition_length: 0s
+            - delay: 200ms
+            - light.turn_off:
+                id: light1
+                transition_length: 0s
+
+# ==============================================================================
 # HARDWARE INPUTS - BUTTON AND ROTARY ENCODER
 # ==============================================================================
 binary_sensor:
@@ -159,21 +214,15 @@ binary_sensor:
               then:
                 - wifi.disable:
                 - logger.log: "WiFi disabled."
-                # 1 short flash feedback on disable
-                - light.turn_on:
-                    id: light1
-                    flash_length: 300ms
+                # 1 blink-down feedback on disable
+                - script.execute: blink_once
               else:
                 - wifi.enable:
                 - logger.log: "WiFi enabled (AP mode)."
-                # 2 short flashes feedback on enable
-                - light.turn_on:
-                    id: light1
-                    flash_length: 300ms
+                # 2 blink-down flashes feedback on enable
+                - script.execute: blink_once
                 - delay: 450ms
-                - light.turn_on:
-                    id: light1
-                    flash_length: 300ms
+                - script.execute: blink_once
 
       # 2. SINGLE-CLICK: Toggle lamp light ON/OFF
       - timing:

@@ -59,7 +59,64 @@ These sensors measure water flow using a dedicated pulse meter and an LCD displa
 
 ---
 
-### 4. Simple Media Player (Audio Streamer)
+### 4. Mi Desk Lamp 1S (Standalone Smart Lamp)
+
+A fully offline/standalone ESPHome conversion of the **Xiaomi Mi Desk Lamp 1S** (MJTD01SYL), physically a **Yeelight Mango1S Ver:0.3A** with an ESP32-WROOM-32D module inside.
+
+* **Microcontroller**: ESP32-WROOM-32D (single-core variant with custom Yeelight eFuse MAC)
+* **Framework**: ESP-IDF (required for single-core ESP32 and eFuse MAC workaround)
+* **Configuration**: `configs/mi-desk-lamp.yaml`
+
+#### Features
+- **Fully standalone / offline** — WiFi is OFF by default, no cloud, no Home Assistant required
+- **Triple-click knob** → toggles WiFi Access Point on/off (for web control)
+  - 2 blinks = AP enabled, 1 blink = AP disabled
+- **Single-click knob** → toggles lamp ON/OFF
+- **Rotate knob** → adjusts brightness
+- **Press + rotate knob** → adjusts color temperature (2500 K warm – 4800 K cool)
+- **3× blink on boot**, then lamp turns OFF
+- **Web interface** at `http://192.168.4.1/` (served locally, no internet needed)
+  - Brightness slider, color temperature slider (K), ON/OFF toggle
+  - ESPHome version and build timestamp shown
+  - OTA firmware update via web UI
+- **Blink feedback always visible** — works whether lamp is ON (blink-down) or OFF (blink-up)
+
+#### WiFi / AP Usage
+1. Triple-click the knob → lamp blinks 2× → AP `Mi-Desk-Lamp-AP` appears
+2. Connect with the password hardcoded in the YAML
+3. Open `http://192.168.4.1/` in your browser
+4. Triple-click again → lamp blinks 1× → AP turns off
+
+> **Note:** The captive portal is disabled intentionally — connecting to the AP will not auto-open a WiFi setup page. Navigate to `http://192.168.4.1/` manually.
+
+#### GPIO Mapping
+
+| Function | GPIO |
+|---|---|
+| Knob button | GPIO33 (INPUT_PULLDOWN, inverted) |
+| Rotary encoder A | GPIO27 |
+| Rotary encoder B | GPIO26 |
+| Cold white LED (LEDC, 40 kHz) | GPIO2 |
+| Warm white LED (LEDC, 40 kHz) | GPIO4 |
+| LED PSU enable | GPIO12 |
+
+#### Flashing
+
+**First flash must be via USB** (partition table changes from factory Yeelight firmware):
+```powershell
+esphome run configs/mi-desk-lamp.yaml
+```
+Subsequent updates can be done via OTA through the web interface at `http://192.168.4.1/` (Choose File → `.bin` → Update), or via `esphome run` while AP is active.
+
+#### Useful Resources
+- [ESPHome CWWW Light](https://esphome.io/components/light/cwww.html)
+- [ESPHome Rotary Encoder](https://esphome.io/components/sensor/rotary_encoder.html)
+- [ESPHome Power Supply](https://esphome.io/components/power_supply.html)
+- [ESPHome Web Server v3](https://esphome.io/components/web_server.html)
+
+---
+
+### 5. Simple Media Player (Audio Streamer)
 A high-performance local network audio streamer optimized for **Music Assistant** and Home Assistant.
 * **Microcontroller**: [ESP32-S3 DevKitC-1 (N16R8)](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/index.html) (16 MB Flash, 8 MB Octal PSRAM)
 * **DAC Module**: Texas Instruments PCM5102A I2S DAC (32-bit / 384 kHz stereo)
