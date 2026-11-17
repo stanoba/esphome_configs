@@ -1,80 +1,204 @@
 substitutions:
   name: mi-desk-lamp
-  device_description: "Xiaomi Mi Desk Lamp (MJTD01YL)"
+  friendly_name: "Mi Desk Lamp 1S"
+  device_description: "Xiaomi Mi Desk Lamp 1S (MJTD01SYL / Mango1S ESP32)"
 
 esphome:
   name: ${name}
-  friendly_name: ${name}
+  friendly_name: ${friendly_name}
   comment: ${device_description}
   min_version: 2024.6.0
   project:
-    name: "syssi.esphome-mi-desk-lamp"
-    version: 1.2.0
+    name: "yeelight.mango1s-esp32"
+    version: "1.0.0"
+  on_boot:
+    # Runs after hardware initialization to blink 3 times and ensure lamp stays OFF
+    priority: -100.0
+    then:
+      - logger.log: "Boot: Starting initial 3x flash indication..."
+      - light.turn_on:
+          id: light1
+          flash_length: 200ms
+      - delay: 350ms
+      - light.turn_on:
+          id: light1
+          flash_length: 200ms
+      - delay: 350ms
+      - light.turn_on:
+          id: light1
+          flash_length: 200ms
+      - delay: 250ms
+      - light.turn_off:
+          id: light1
+      - logger.log: "Boot: Initial flash sequence finished. Lamp is OFF."
 
-esp8266:
-  board: esp8285
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_FREERTOS_UNICORE: y
+    advanced:
+      # Fix for Xiaomi/Yeelight devices with custom MAC addresses burned into eFuses
+      ignore_efuse_mac_crc: true
+      ignore_efuse_custom_mac: true
 
+# ==============================================================================
+# WIFI AND CONNECTIVITY CONFIGURATION
+# ==============================================================================
+# PHASE 1 (Development / Debugging):
+#   - Keep 'enable_on_boot: true' and configure your home network credentials.
+#
+# PHASE 2 (Standalone / Offline mode):
+#   - Set 'enable_on_boot: false'.
+#   - On power-up, WiFi remains completely OFF.
+#   - Triple-click the knob button to turn ON the Access Point ("Mi-Desk-Lamp-AP").
+#   - Triple-click again to turn WiFi back OFF.
+#   - (Optional) Comment out 'ssid' and 'password' below if no STA is desired.
+# ==============================================================================
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  min_auth_mode: WPA2
+  # Home WiFi credentials (commented out for standalone AP-only Phase 2)
+  # ssid: !secret wifi_ssid
+  # password: !secret wifi_password
+  # min_auth_mode: WPA2
+
+  # Phase 2: WiFi is OFF on boot. Activated on-demand via triple-click.
   enable_on_boot: false
+
+  # Prevent device from rebooting when WiFi is unavailable
   reboot_timeout: 0s
 
+  # On-demand Access Point (AP) mode
+  ap:
+    ssid: "Mi-Desk-Lamp-AP"
+    password: "U1tr4Pass*"
+
+# Embedded web server for standalone control via browser (http://192.168.4.1 in AP mode)
+web_server:
+  port: 80
+  version: 3
+  local: true
+
+# Captive portal for easy browser pop-up upon connecting to AP
+captive_portal:
+
 ota:
-  platform: esphome
+  - platform: esphome
 
 logger:
   level: DEBUG
 
-api:
-  reboot_timeout: 0s
+# ==============================================================================
+# DIAGNOSTICS & SYSTEM SENSORS
+# ==============================================================================
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+    hide_timestamp: false
+  - platform: template
+    name: "Build Time"
+    icon: "mdi:wrench-clock"
+    lambda: 'return {__DATE__ ", " __TIME__};'
 
+# ==============================================================================
+# WEB CONTROLS - EXPLICIT COLOR TEMPERATURE SLIDER
+# ==============================================================================
+number:
+  - platform: template
+    name: "Color Temperature"
+    id: color_temp_slider
+    icon: "mdi:thermometer"
+    unit_of_measurement: "K"
+    min_value: 2500
+    max_value: 4800
+    step: 50
+    mode: slider
+    update_interval: 1s
+    set_action:
+      - logger.log:
+          format: "Web slider: Setting color temperature to %.0f K"
+          args: ['x']
+      - light.turn_on:
+          id: light1
+          color_temperature: !lambda 'return 1000000.0 / x;'
+    lambda: |-
+      float mireds = id(light1).current_values.get_color_temperature();
+      if (mireds > 0.0f) {
+        return 1000000.0f / mireds;
+      }
+      return 3500.0f;
+
+# ==============================================================================
+# HARDWARE INPUTS - BUTTON AND ROTARY ENCODER
+# ==============================================================================
 binary_sensor:
   - platform: gpio
     id: button
-    name: "Button"
+    name: "Knob Button"
     pin:
-      number: GPIO2
+      number: GPIO33
       inverted: true
-    on_click:
-      then:
-        - light.toggle: light1
+      mode: INPUT_PULLDOWN
+    filters:
+      - delayed_on_off: 20ms
+    on_multi_click:
+      # 1. TRIPLE-CLICK: Toggle WiFi ON/OFF (AP mode access)
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at most 0.4s
+          - ON for at most 0.4s
+          - OFF for at most 0.4s
+          - ON for at most 0.4s
+          - OFF for at least 0.3s
+        then:
+          - logger.log: "Triple-click detected: Toggling WiFi state!"
+          - if:
+              condition:
+                wifi.enabled:
+              then:
+                - wifi.disable:
+                - logger.log: "WiFi disabled."
+                # 1 short flash feedback on disable
+                - light.turn_on:
+                    id: light1
+                    flash_length: 300ms
+              else:
+                - wifi.enable:
+                - logger.log: "WiFi enabled (AP mode)."
+                # 2 short flashes feedback on enable
+                - light.turn_on:
+                    id: light1
+                    flash_length: 300ms
+                - delay: 450ms
+                - light.turn_on:
+                    id: light1
+                    flash_length: 300ms
 
-light:
-  - platform: cwww
-    id: light1
-    default_transition_length: 0s
-    constant_brightness: true
-    name: "Light"
-    cold_white: output_cold
-    warm_white: output_warm
-    cold_white_color_temperature: 6500K
-    warm_white_color_temperature: 2700K
-    gamma_correct: 0
-
-output:
-  - platform: esp8266_pwm
-    pin: GPIO4
-    id: output_cold
-  - platform: esp8266_pwm
-    pin: GPIO5
-    id: output_warm
+      # 2. SINGLE-CLICK: Toggle lamp light ON/OFF
+      - timing:
+          - ON for at most 0.5s
+          - OFF for at least 0.35s
+        then:
+          - logger.log: "Knob Button: Single-click detected -> Toggling light"
+          - light.toggle:
+              id: light1
+              transition_length: 0.2s
 
 sensor:
   - platform: rotary_encoder
     id: rotation
-    pin_a: GPIO13
-    pin_b: GPIO12
+    name: "Knob Rotation"
+    pin_a: GPIO27
+    pin_b: GPIO26
     resolution: 2
     on_value:
       then:
         - if:
             condition:
-              # Check if Button is pressed while rotating
+              # Button pressed while rotating -> adjust color temperature (CWWW)
               lambda: 'return id(button).state;'
             then:
-              # If Button is pressed, change CW/WW
               - lambda: |-
                   auto min_temp = id(light1).get_traits().get_min_mireds();
                   auto max_temp = id(light1).get_traits().get_max_mireds();
@@ -83,13 +207,58 @@ sensor:
                   auto call = id(light1).turn_on();
                   call.set_color_temperature(new_temp);
                   call.perform();
+                  ESP_LOGD("knob", "Knob Turn (Pressed): Color Temperature = %.0f K (%.1f mireds)", 1000000.0f / new_temp, new_temp);
             else:
-              # If Button is not pressed, change brightness
-              - light.dim_relative:
-                  id: light1
-                  relative_brightness: !lambda |-
-                    return x / 25.0;
-        # Reset Rotation to 0
+              # Button not pressed -> adjust brightness
+              - lambda: |-
+                  float cur_b = id(light1).current_values.get_brightness();
+                  float new_b = max(0.01f, min(1.0f, cur_b + (x / 25.0f)));
+                  auto call = id(light1).turn_on();
+                  call.set_brightness(new_b);
+                  call.perform();
+                  ESP_LOGD("knob", "Knob Turn: Brightness = %.0f%% (delta %+.0f%%)", new_b * 100.0f, (x / 25.0f) * 100.0f);
+        # Reset relative rotation counter to 0
         - sensor.rotary_encoder.set_value:
             id: rotation
             value: 0
+
+# ==============================================================================
+# POWER SUPPLY AND PWM OUTPUTS (LEDC)
+# ==============================================================================
+# GPIO12 enables the LED step-down DC/DC converter rail (mandatory on 1S hardware)
+power_supply:
+  - id: power
+    pin: GPIO12
+    enable_time: 0s
+    keep_on_time: 0s
+
+output:
+  # Cold White LED PWM (40 kHz prevents audible inductor whine)
+  - platform: ledc
+    pin: GPIO2
+    id: output_cw
+    frequency: 40000Hz
+    power_supply: power
+
+  # Warm White LED PWM (40 kHz prevents audible inductor whine)
+  - platform: ledc
+    pin: GPIO4
+    id: output_ww
+    frequency: 40000Hz
+    power_supply: power
+
+# ==============================================================================
+# LIGHT COMPONENT (Cold White / Warm White)
+# ==============================================================================
+light:
+  - platform: cwww
+    id: light1
+    name: "${friendly_name} Light"
+    default_transition_length: 0s
+    constant_brightness: true
+    cold_white: output_cw
+    warm_white: output_ww
+    cold_white_color_temperature: 4800K
+    warm_white_color_temperature: 2500K
+    restore_mode: ALWAYS_OFF
+    gamma_correct: 0
