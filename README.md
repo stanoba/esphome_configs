@@ -70,20 +70,21 @@ A fully offline/standalone ESPHome conversion of the **Xiaomi Mi Desk Lamp 1S** 
 #### Features
 - **Fully standalone / offline** — WiFi is OFF by default, no cloud, no Home Assistant required
 - **Triple-click knob** → toggles WiFi Access Point on/off (for web control)
-  - 2 blinks = AP enabled, 1 blink = AP disabled
-- **Single-click knob** → toggles lamp ON/OFF
-- **Rotate knob** → adjusts brightness
-- **Press + rotate knob** → adjusts color temperature (2500 K warm – 4800 K cool)
-- **3× blink on boot**, then lamp turns OFF
+  - 3 blinks = AP enabled, 1 blink = AP disabled
+- **Single-click knob** → toggles lamp ON/OFF using the remembered brightness and color temperature
+- **Rotate knob while lamp is ON** → adjusts brightness in 5% steps
+- **Press + rotate knob while lamp is ON** → adjusts color temperature in 115 K steps (2500 K warm – 4800 K cool)
+- **2× blink on boot**, then lamp turns OFF
 - **Web interface** at `http://192.168.4.1/` (served locally, no internet needed)
-  - Brightness slider, color temperature slider (K), ON/OFF toggle
-  - ESPHome version and build timestamp shown
-  - OTA firmware update via web UI
+  - Brightness (5–100%) and color temperature sliders can change remembered settings while the lamp is OFF without turning it on
+  - The Power switch is the UI control for turning the lamp ON/OFF; turning it on applies the remembered brightness and color temperature
+  - ESPHome version and OTA firmware update are available in the web UI
 - **Blink feedback always visible** — works whether lamp is ON (blink-down) or OFF (blink-up)
+- **Remembered settings** — brightness and color temperature are saved to ESP32 NVS; changed preferences are flushed at most once per minute
 
 #### WiFi / AP Usage
-1. Triple-click the knob → lamp blinks 2× → AP `Mi-Desk-Lamp-AP` appears
-2. Connect with the password hardcoded in the YAML
+1. Triple-click the knob → lamp blinks 3× → AP `Mi-Desk-Lamp-AP` appears
+2. Connect with password `Mango1S!` (also set in the YAML)
 3. Open `http://192.168.4.1/` in your browser
 4. Triple-click again → lamp blinks 1× → AP turns off
 
@@ -106,7 +107,7 @@ A fully offline/standalone ESPHome conversion of the **Xiaomi Mi Desk Lamp 1S** 
 ```powershell
 esphome run configs/mi-desk-lamp.yaml
 ```
-Subsequent updates can be done via OTA through the web interface at `http://192.168.4.1/` (Choose File → `.bin` → Update), or via `esphome run` while AP is active.
+Subsequent updates can be done through the web UI's **OTA Update** section at `http://192.168.4.1/` using an OTA firmware binary, or through ESPHome OTA with `esphome run` while the AP is active.
 
 #### Useful Resources
 - [ESPHome CWWW Light](https://esphome.io/components/light/cwww.html)
