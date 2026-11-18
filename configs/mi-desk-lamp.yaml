@@ -24,40 +24,22 @@ esphome:
           if (id(saved_color_temp) <= 0.0f) {
             id(saved_color_temp) = 300.0f;
           }
-          id(transient_light_action) = true;
           ESP_LOGI("restore", "Loaded brightness %.0f%%, color temperature %.0f mireds",
                    id(saved_brightness) * 100.0f, id(saved_color_temp));
       - logger.log: "Boot: Starting initial 3x flash indication..."
-      - light.turn_on:
-          id: light1
-          brightness: !lambda 'return id(saved_brightness);'
-          color_temperature: !lambda 'return id(saved_color_temp);'
-          transition_length: 0s
-      - delay: 350ms
-      - light.turn_off:
-          id: light1
-          transition_length: 0s
-      - delay: 200ms
-      - light.turn_on:
-          id: light1
-          brightness: !lambda 'return id(saved_brightness);'
-          color_temperature: !lambda 'return id(saved_color_temp);'
-          transition_length: 0s
-      - delay: 350ms
-      - light.turn_off:
-          id: light1
-          transition_length: 0s
-      - delay: 200ms
-      - light.turn_on:
-          id: light1
-          brightness: !lambda 'return id(saved_brightness);'
-          color_temperature: !lambda 'return id(saved_color_temp);'
-          transition_length: 0s
-      - delay: 350ms
-      - light.turn_off:
-          id: light1
-          transition_length: 0s
-      - lambda: 'id(transient_light_action) = false;'
+      - repeat:
+          count: 3
+          then:
+            - light.turn_on:
+                id: light1
+                brightness: !lambda 'return id(saved_brightness);'
+                color_temperature: !lambda 'return id(saved_color_temp);'
+                transition_length: 0s
+            - delay: 350ms
+            - light.turn_off:
+                id: light1
+                transition_length: 0s
+            - delay: 200ms
       - logger.log: "Boot: Initial flash sequence finished. Lamp is OFF."
 
 esp32:
@@ -117,7 +99,7 @@ ota:
 logger:
   level: DEBUG
 
-# Persist changed preferences to ESP32 NVS no more than once every two minutes.
+# Flush changed preferences to ESP32 NVS at most once per minute.
 preferences:
   flash_write_interval: 1min
 
@@ -179,14 +161,14 @@ number:
           id: light1
           color_temperature: !lambda 'return 1000000.0 / x;'
     lambda: |-
-      float mireds = id(light1).current_values.get_color_temperature();
+      float mireds = id(saved_color_temp);
       if (mireds > 0.0f) {
         return 1000000.0f / mireds;
       }
       return 3500.0f;
 
 # ==============================================================================
-# GLOBAL VARIABLES - save lamp state for blink feedback
+# PERSISTED LIGHT SETTINGS AND TEMPORARY BLINK STATE
 # ==============================================================================
 globals:
   - id: saved_brightness
@@ -197,9 +179,6 @@ globals:
     type: float
     restore_value: yes
     initial_value: '300.0'
-  - id: transient_light_action
-    type: bool
-    initial_value: 'false'
   - id: blink_brightness
     type: float
     initial_value: '1.0'
@@ -224,7 +203,6 @@ script:
           id(blink_brightness) = id(light1).remote_values.get_brightness();
           id(blink_color_temp) = id(light1).remote_values.get_color_temperature();
           id(blink_light_on) = id(light1).remote_values.is_on();
-          id(transient_light_action) = true;
       - if:
           condition:
             lambda: 'return id(blink_light_on);'
@@ -250,7 +228,6 @@ script:
             - light.turn_off:
                 id: light1
                 transition_length: 0s
-      - lambda: 'id(transient_light_action) = false;'
 
 # Keep an on/off control in the web UI while the brightness percentage slider
 # below replaces the native light control (which exposes brightness as 0-255).
